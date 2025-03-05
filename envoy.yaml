@@ -1,7 +1,6 @@
 static_resources:
   listeners:
-    # TCP Listener (RTMP)
-    - name: rtmp_listener
+    - name: listener_rtmp
       address:
         socket_address:
           address: 0.0.0.0
@@ -10,58 +9,31 @@ static_resources:
         - filters:
             - name: envoy.filters.network.tcp_proxy
               typed_config:
-                '@type': type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+                "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
                 stat_prefix: rtmp
-                cluster: srs_rtmp
-
-    # UDP Listener (SRT)
-    - name: srt_listener
-      address:
-        socket_address:
-          address: 0.0.0.0
-          port_value: 10080
-          protocol: UDP
-      udp_listener_config:
-        downstream_socket_config:
-          max_rx_datagram_size: 9000
-      listener_filters:
-        - name: envoy.filters.udp_listener.udp_proxy
-          typed_config:
-            '@type': type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.UdpProxyConfig
-            stat_prefix: srt
-            matcher:
-              on_no_match:
-                action:
-                  name: route
-                  typed_config:
-                    '@type': type.googleapis.com/envoy.extensions.filters.udp.udp_proxy.v3.Route
-                    cluster: srs_srt
-            upstream_socket_config:
-              max_rx_datagram_size: 9000
-
+                cluster: srs_edge_cluster
   clusters:
-    - name: srs_rtmp
-      type: STRICT_DNS
+    - name: srs_edge_cluster
+      connect_timeout: 0.25s
+      type: STATIC
       lb_policy: ROUND_ROBIN
       load_assignment:
-        cluster_name: srs_rtmp
+        cluster_name: srs_edge_cluster
         endpoints:
           - lb_endpoints:
               - endpoint:
                   address:
                     socket_address:
-                      address: srs
+                      address: 172.18.0.3 #srs-edge-1
                       port_value: 1935
-
-    - name: srs_srt
-      type: STRICT_DNS
-      lb_policy: ROUND_ROBIN
-      load_assignment:
-        cluster_name: srs_srt
-        endpoints:
-          - lb_endpoints:
               - endpoint:
                   address:
                     socket_address:
-                      address: srs
-                      port_value: 10080
+                      address: 172.18.0.5 #srs-edge-2
+                      port_value: 1935
+admin:
+  access_log_path: "/tmp/admin_access.log"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
